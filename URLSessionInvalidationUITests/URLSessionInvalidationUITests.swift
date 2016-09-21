@@ -12,25 +12,44 @@ class URLSessionInvalidationUITests: XCTestCase {
         
     override func setUp() {
         super.setUp()
-        
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-        
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-        // UI tests must launch the application that they test. Doing this in setup will make sure it happens for each test method.
         XCUIApplication().launch()
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
     }
     
     override func tearDown() {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
         super.tearDown()
     }
     
-    func testExample() {
-        // Use recording to get started writing UI tests.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+    func testSessionIsInvalidatedAfterGoingToBackground() {
+        
+        let app = XCUIApplication()
+        let device = XCUIDevice.shared()
+        let progressBar = app.progressIndicators.element
+        let statusLabel = app.staticTexts["statusLabel"]
+
+        // Start downloading
+        app.buttons["startButton"].tap()
+        
+        // Wait for the download to start
+        expectation(for: NSPredicate(format: "value != '0%'"), evaluatedWith: progressBar, handler: nil)
+        waitForExpectations(timeout: 10, handler: nil)
+        
+        // Put the app to background
+        device.press(.home)
+        
+        // Wait a bit. Doesn't "truly" get to background without it? :-|
+        sleep(2)
+        
+        // Return the app to foreground. Can easily break soon
+        XCUIApplication.fb_SpringBoard().fb_tap(withIdentifier: "URLSessionInvalidation")
+        
+        // Wait for the download to finish
+        expectation(for: NSPredicate(format: "value = '100%'"), evaluatedWith: progressBar, handler: nil)
+        waitForExpectations(timeout: 120, handler: nil)
+        
+        // Check if session was invalidated
+        XCTAssertTrue(statusLabel.label.hasPrefix("Session invalidated"))
+        
     }
     
 }
